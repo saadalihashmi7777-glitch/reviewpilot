@@ -12,7 +12,11 @@ export default function GeneratePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
-  const [repliesRemaining, setRepliesRemaining] = useState(8);
+
+  const [repliesRemaining, setRepliesRemaining] =
+    useState<number | "Unlimited">("Unlimited");
+
+  const [plan, setPlan] = useState("free");
 
   useEffect(() => {
     async function loadUsage() {
@@ -27,12 +31,49 @@ export default function GeneratePage() {
         return;
       }
 
-      const { count } = await supabase
-        .from("review_replies")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id);
+      // Get current plan
+      const { data: planData, error: planError } =
+        await supabase
+          .from("user_plans")
+          .select("plan")
+          .eq("user_id", user.id)
+          .maybeSingle();
 
-      setRepliesRemaining(Math.max(10 - (count ?? 0), 0));
+      if (planError) {
+        console.error("Plan error:", planError);
+      }
+
+      const currentPlan = planData?.plan || "free";
+
+      setPlan(currentPlan);
+
+      // Pro and Business are unlimited
+      if (
+        currentPlan === "pro" ||
+        currentPlan === "business"
+      ) {
+        setRepliesRemaining("Unlimited");
+        return;
+      }
+
+      // Free plan: calculate remaining replies
+      const { count, error: usageError } =
+        await supabase
+          .from("review_replies")
+          .select("id", {
+            count: "exact",
+            head: true,
+          })
+          .eq("user_id", user.id);
+
+      if (usageError) {
+        console.error("Usage error:", usageError);
+        return;
+      }
+
+      setRepliesRemaining(
+        Math.max(10 - (count ?? 0), 0)
+      );
     }
 
     loadUsage();
@@ -41,7 +82,12 @@ export default function GeneratePage() {
   async function handleGenerate() {
     if (!review.trim() || loading) return;
 
-    if (repliesRemaining <= 0) {
+    // Only block Free users when they have reached 0
+    if (
+      plan === "free" &&
+      typeof repliesRemaining === "number" &&
+      repliesRemaining <= 0
+    ) {
       setError(
         "You've used all 10 free replies. Upgrade your plan to generate more."
       );
@@ -67,10 +113,12 @@ export default function GeneratePage() {
 
       const response = await fetch("/api/generate", {
         method: "POST",
+
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
+
         body: JSON.stringify({
           customerName,
           rating,
@@ -82,15 +130,22 @@ export default function GeneratePage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to generate reply.");
+        throw new Error(
+          data.error || "Failed to generate reply."
+        );
       }
 
       setReply(data.reply);
 
-      if (typeof data.repliesRemaining === "number") {
+      // Backend is the source of truth
+      if (
+        typeof data.repliesRemaining === "number"
+      ) {
         setRepliesRemaining(data.repliesRemaining);
-      } else {
-        setRepliesRemaining((current) => Math.max(current - 1, 0));
+      } else if (
+        data.repliesRemaining === null
+      ) {
+        setRepliesRemaining("Unlimited");
       }
     } catch (err) {
       setError(
@@ -108,13 +163,16 @@ export default function GeneratePage() {
 
     try {
       await navigator.clipboard.writeText(reply);
+
       setCopied(true);
 
       setTimeout(() => {
         setCopied(false);
       }, 2000);
     } catch {
-      setError("Could not copy the reply. Please copy it manually.");
+      setError(
+        "Could not copy the reply. Please copy it manually."
+      );
     }
   }
 
@@ -122,15 +180,23 @@ export default function GeneratePage() {
     setCustomerName("Sarah");
     setRating("5");
     setTone("Friendly");
+
     setReview(
       "The service was excellent and the staff were very friendly. Everything was smooth and easy. I would definitely recommend this business!"
     );
+
     setError("");
   }
+
+  const freeLimitReached =
+    plan === "free" &&
+    typeof repliesRemaining === "number" &&
+    repliesRemaining <= 0;
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 sm:px-6">
       <div className="mx-auto max-w-3xl">
+
         <div className="flex items-center justify-between">
           <a
             href="/dashboard"
@@ -140,8 +206,13 @@ export default function GeneratePage() {
           </a>
 
           <div className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm">
-            {repliesRemaining} free{" "}
-            {repliesRemaining === 1 ? "reply" : "replies"} remaining
+            {repliesRemaining === "Unlimited"
+              ? "Unlimited replies"
+              : `${repliesRemaining} free ${
+                  repliesRemaining === 1
+                    ? "reply"
+                    : "replies"
+                } remaining`}
           </div>
         </div>
 
@@ -151,11 +222,13 @@ export default function GeneratePage() {
           </h1>
 
           <p className="mt-2 text-gray-600">
-            Turn any customer review into a thoughtful, professional response.
+            Turn any customer review into a thoughtful,
+            professional response.
           </p>
         </div>
 
         <div className="mt-8 rounded-2xl bg-white p-6 shadow-sm sm:p-8">
+
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-gray-900">
               Customer details
@@ -181,7 +254,9 @@ export default function GeneratePage() {
             <input
               type="text"
               value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
+              onChange={(e) =>
+                setCustomerName(e.target.value)
+              }
               placeholder="e.g. Sarah"
               className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10"
             />
@@ -260,12 +335,16 @@ export default function GeneratePage() {
           <button
             type="button"
             onClick={handleGenerate}
-            disabled={!review.trim() || loading || repliesRemaining <= 0}
+            disabled={
+              !review.trim() ||
+              loading ||
+              freeLimitReached
+            }
             className="mt-6 w-full rounded-xl bg-gray-900 px-5 py-3.5 font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300"
           >
             {loading
               ? "Generating..."
-              : repliesRemaining <= 0
+              : freeLimitReached
                 ? "Free Limit Reached"
                 : "Generate Reply →"}
           </button>
@@ -278,7 +357,9 @@ export default function GeneratePage() {
 
           {reply && (
             <div className="mt-8 rounded-2xl border border-gray-200 bg-gray-50 p-5 sm:p-6">
+
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">
                     Generated Reply
@@ -290,22 +371,31 @@ export default function GeneratePage() {
                 </div>
 
                 <div className="flex gap-2">
+
                   <button
                     type="button"
                     onClick={handleCopy}
                     className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100"
                   >
-                    {copied ? "✓ Copied" : "Copy Reply"}
+                    {copied
+                      ? "✓ Copied"
+                      : "Copy Reply"}
                   </button>
 
                   <button
                     type="button"
                     onClick={handleGenerate}
-                    disabled={loading || repliesRemaining <= 0}
+                    disabled={
+                      loading ||
+                      freeLimitReached
+                    }
                     className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:bg-gray-400"
                   >
-                    {loading ? "Generating..." : "Regenerate"}
+                    {loading
+                      ? "Generating..."
+                      : "Regenerate"}
                   </button>
+
                 </div>
               </div>
 
@@ -314,13 +404,18 @@ export default function GeneratePage() {
                   {reply}
                 </p>
               </div>
+
             </div>
           )}
+
         </div>
 
         <div className="mt-5 text-center text-sm text-gray-500">
-          Free plan · {repliesRemaining} replies remaining
+          {plan === "free"
+            ? `Free plan · ${repliesRemaining} replies remaining`
+            : `${plan} plan · Unlimited replies`}
         </div>
+
       </div>
     </main>
   );
