@@ -12,7 +12,7 @@ export default function PricingPage() {
     setSupabase(createClient());
   }, []);
 
-  async function handleUpgrade() {
+  async function handleUpgrade(plan: "pro" | "business") {
     if (!supabase) {
       setError("Supabase is still loading. Please try again.");
       return;
@@ -34,20 +34,25 @@ export default function PricingPage() {
         method: "POST",
         headers: {
           Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          plan: "pro",
+          plan: plan,
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Unable to start checkout.");
+        throw new Error(
+          data.error || "Unable to start checkout."
+        );
       }
 
       if (!data.url) {
-        throw new Error("Stripe checkout URL was not returned.");
+        throw new Error(
+          "Stripe checkout URL was not returned."
+        );
       }
 
       window.location.href = data.url;
@@ -68,6 +73,7 @@ export default function PricingPage() {
     <main className="min-h-screen bg-gray-50 px-6 py-12">
       <div className="mx-auto max-w-6xl">
 
+        {/* Back */}
         <a
           href="/dashboard"
           className="font-semibold text-gray-700 hover:underline"
@@ -75,6 +81,7 @@ export default function PricingPage() {
           ← Back to Dashboard
         </a>
 
+        {/* Heading */}
         <div className="mt-10 text-center">
           <h1 className="text-4xl font-bold text-gray-900">
             Simple pricing
@@ -85,10 +92,12 @@ export default function PricingPage() {
           </p>
         </div>
 
+        {/* Pricing cards */}
         <div className="mx-auto mt-10 grid max-w-6xl gap-8 md:grid-cols-3">
 
           {/* FREE PLAN */}
           <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+
             <h2 className="text-2xl font-bold text-gray-900">
               Free
             </h2>
@@ -126,6 +135,7 @@ export default function PricingPage() {
 
           {/* PRO PLAN */}
           <div className="relative rounded-2xl border-2 border-gray-900 bg-white p-8 shadow-md">
+
             <div className="absolute right-6 top-6 rounded-full bg-gray-900 px-3 py-1 text-xs font-bold text-white">
               RECOMMENDED
             </div>
@@ -157,7 +167,7 @@ export default function PricingPage() {
             </div>
 
             <button
-              onClick={handleUpgrade}
+              onClick={() => handleUpgrade("pro")}
               disabled={loading}
               className="mt-8 w-full rounded-xl bg-gray-900 px-5 py-3 font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
@@ -166,12 +176,6 @@ export default function PricingPage() {
                 : "Upgrade to Pro →"}
             </button>
 
-            {error && (
-              <div className="mt-4 rounded-xl bg-red-50 p-4 text-sm text-red-700">
-                {error}
-              </div>
-            )}
-
             <p className="mt-4 text-center text-xs text-gray-500">
               Secure checkout powered by Stripe.
             </p>
@@ -179,6 +183,7 @@ export default function PricingPage() {
 
           {/* BUSINESS PLAN */}
           <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+
             <h2 className="text-2xl font-bold text-gray-900">
               Business
             </h2>
@@ -206,18 +211,27 @@ export default function PricingPage() {
             </div>
 
             <button
-              disabled
-              className="mt-8 w-full cursor-not-allowed rounded-xl border border-gray-300 px-5 py-3 font-semibold text-gray-500"
+              onClick={() => handleUpgrade("business")}
+              disabled={loading}
+              className="mt-8 w-full rounded-xl bg-gray-900 px-5 py-3 font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Business checkout coming soon
+              {loading
+                ? "Opening checkout..."
+                : "Upgrade to Business →"}
             </button>
 
             <p className="mt-4 text-center text-xs text-gray-500">
-              Business billing will be available soon.
+              Secure checkout powered by Stripe.
             </p>
           </div>
-
         </div>
+
+        {/* Error */}
+        {error && (
+          <div className="mx-auto mt-8 max-w-2xl rounded-xl bg-red-50 p-4 text-center text-sm text-red-700">
+            {error}
+          </div>
+        )}
       </div>
     </main>
   );

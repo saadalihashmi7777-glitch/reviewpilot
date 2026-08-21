@@ -6,7 +6,6 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 export async function POST(request: Request) {
   try {
-    // Get the Supabase access token exactly like /api/generate
     const authHeader = request.headers.get("Authorization");
 
     if (!authHeader) {
@@ -18,7 +17,6 @@ export async function POST(request: Request) {
 
     const accessToken = authHeader.replace("Bearer ", "");
 
-    // Use the same Supabase client configuration as /api/generate
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
@@ -31,7 +29,6 @@ export async function POST(request: Request) {
       }
     );
 
-    // Verify the logged-in user
     const {
       data: { user },
       error: userError,
@@ -39,42 +36,86 @@ export async function POST(request: Request) {
 
     if (userError || !user) {
       return NextResponse.json(
-        { error: "Your login session is invalid. Please log in again." },
+        {
+          error:
+            "Your login session is invalid. Please log in again.",
+        },
         { status: 401 }
       );
     }
 
-    // Create Stripe Checkout session
+    let body: { plan?: string } = {};
+
+    try {
+      body = await request.json();
+    } catch {
+      body = {};
+    }
+
+    const plan = body.plan || "pro";
+
+    let priceId: string | undefined;
+
+    if (plan === "pro") {
+      priceId = process.env.STRIPE_PRO_PRICE_ID;
+    } else if (plan === "business") {
+      priceId = process.env.STRIPE_BUSINESS_PRICE_ID;
+    } else {
+      return NextResponse.json(
+        { error: "Invalid plan selected." },
+        { status: 400 }
+      );
+    }
+
+    if (!priceId) {
+      return NextResponse.json(
+        {
+          error: `Stripe price ID for ${plan} plan is not configured.`,
+        },
+        { status: 500 }
+      );
+    }
+
+    const siteUrl =
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      "http://localhost:3000";
+
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
 
       line_items: [
         {
-          price: process.env.STRIPE_PRICE_ID!,
+          price: priceId,
           quantity: 1,
         },
       ],
 
       customer_email: user.email || undefined,
 
+      metadata: {
+        user_id: user.id,
+        plan: plan,
+      },
+
       success_url:
-        `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/dashboard?payment=success`,
+        `${siteUrl}/dashboard?payment=success`,
 
       cancel_url:
-        `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/pricing?payment=cancelled`,
+        `${siteUrl}/pricing?payment=cancelled`,
     });
 
     return NextResponse.json({
       url: session.url,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("STRIPE CHECKOUT ERROR:", error);
 
     return NextResponse.json(
       {
         error:
-          error?.message ||
-          "Unable to create Stripe checkout session.",
+          error instanceof Error
+            ? error.message
+            : "Unable to create Stripe checkout session.",
       },
       { status: 500 }
     );
