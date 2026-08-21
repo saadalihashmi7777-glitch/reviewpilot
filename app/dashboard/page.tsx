@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -91,14 +92,15 @@ export default function DashboardPage() {
 
   const repliesGenerated = replies.length;
 
-  const repliesRemaining =
-    plan === "pro"
-      ? "Unlimited"
-      : Math.max(10 - repliesGenerated, 0);
+const repliesRemaining =
+  plan === "pro" || plan === "business"
+    ? "Unlimited"
+    : Math.max(10 - repliesGenerated, 0);
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 sm:px-6">
       <div className="mx-auto max-w-5xl">
+
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">
@@ -119,6 +121,7 @@ export default function DashboardPage() {
         </header>
 
         <section className="mt-8 grid gap-6 md:grid-cols-3">
+
           <div className="rounded-2xl bg-white p-6 shadow-sm">
             <p className="text-sm font-medium text-gray-500">
               Replies generated
@@ -167,6 +170,7 @@ export default function DashboardPage() {
 
         <section className="mt-8 rounded-2xl bg-white p-8 shadow-sm">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+
             <div>
               <h2 className="text-xl font-bold text-gray-900">
                 Generate a new reply
@@ -183,10 +187,12 @@ export default function DashboardPage() {
             >
               Generate Reply →
             </Link>
+
           </div>
         </section>
 
         <section className="mt-8 rounded-2xl bg-white p-8 shadow-sm">
+
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-gray-900">
               Recent replies
@@ -201,6 +207,7 @@ export default function DashboardPage() {
 
           {replies.length === 0 ? (
             <div className="mt-6 rounded-xl border border-dashed border-gray-300 p-10 text-center">
+
               <p className="text-gray-500">
                 No replies yet.
               </p>
@@ -211,15 +218,19 @@ export default function DashboardPage() {
               >
                 Generate your first reply →
               </Link>
+
             </div>
           ) : (
             <div className="mt-6 space-y-5">
+
               {replies.map((item) => (
                 <div
                   key={item.id}
                   className="rounded-xl border border-gray-200 p-5"
                 >
+
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
                     <div>
                       <p className="font-semibold text-gray-900">
                         {item.customer_name || "Customer"}
@@ -235,6 +246,7 @@ export default function DashboardPage() {
                     <p className="text-xs text-gray-400">
                       {new Date(item.created_at).toLocaleDateString()}
                     </p>
+
                   </div>
 
                   <div className="mt-5">
@@ -256,15 +268,20 @@ export default function DashboardPage() {
                       {item.reply}
                     </p>
                   </div>
+
                 </div>
               ))}
+
             </div>
           )}
+
         </section>
 
         {plan === "free" && (
           <section className="mt-8 rounded-2xl bg-gray-900 p-8 text-white">
+
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+
               <div>
                 <h2 className="text-xl font-bold">
                   Need unlimited replies?
@@ -282,9 +299,12 @@ export default function DashboardPage() {
               >
                 View Pro Plan →
               </Link>
+
             </div>
+
           </section>
         )}
+
       </div>
     </main>
   );
