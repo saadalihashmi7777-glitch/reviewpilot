@@ -25,7 +25,10 @@ export async function POST(request: Request) {
       process.env.STRIPE_WEBHOOK_SECRET!
     );
   } catch (error) {
-    console.error("Webhook signature verification failed:", error);
+    console.error(
+      "Webhook signature verification failed:",
+      error
+    );
 
     return NextResponse.json(
       { error: "Invalid webhook signature." },
@@ -34,9 +37,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    if (
-      event.type === "checkout.session.completed"
-    ) {
+    if (event.type === "checkout.session.completed") {
       const session =
         event.data.object as Stripe.Checkout.Session;
 
@@ -44,7 +45,10 @@ export async function POST(request: Request) {
 
       if (!email) {
         console.error("No customer email found.");
-        return NextResponse.json({ received: true });
+
+        return NextResponse.json({
+          received: true,
+        });
       }
 
       const supabase = createClient(
@@ -56,7 +60,10 @@ export async function POST(request: Request) {
         await supabase.auth.admin.listUsers();
 
       if (userError) {
-        console.error("Supabase user lookup error:", userError);
+        console.error(
+          "Supabase user lookup error:",
+          userError
+        );
 
         return NextResponse.json(
           { error: "Could not find Supabase user." },
@@ -65,7 +72,8 @@ export async function POST(request: Request) {
       }
 
       const user = userData.users.find(
-        (u) => u.email?.toLowerCase() === email.toLowerCase()
+        (u) =>
+          u.email?.toLowerCase() === email.toLowerCase()
       );
 
       if (!user) {
@@ -112,7 +120,10 @@ export async function POST(request: Request) {
       received: true,
     });
   } catch (error) {
-    console.error("WEBHOOK ERROR:", error);
+    console.error(
+      "WEBHOOK ERROR:",
+      error
+    );
 
     return NextResponse.json(
       { error: "Webhook processing failed." },
