@@ -37,7 +37,8 @@ export async function POST(request: Request) {
     if (userError || !user) {
       return NextResponse.json(
         {
-          error: "Your login session is invalid. Please log in again.",
+          error:
+            "Your login session is invalid. Please log in again.",
         },
         { status: 401 }
       );
@@ -67,30 +68,45 @@ export async function POST(request: Request) {
     }
 
     const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      "http://localhost:3000";
 
-    const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
+    const session =
+      await stripe.checkout.sessions.create({
+        mode: "subscription",
 
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
+        line_items: [
+          {
+            price: priceId,
+            quantity: 1,
+          },
+        ],
+
+        customer_email:
+          user.email || undefined,
+
+        // IMPORTANT:
+        // This tells the webhook which plan was purchased.
+        metadata: {
+          plan: plan,
+          user_id: user.id,
         },
-      ],
 
-      customer_email: user.email || undefined,
+        success_url:
+          `${siteUrl}/dashboard?payment=success`,
 
-      success_url: `${siteUrl}/dashboard?payment=success`,
-
-      cancel_url: `${siteUrl}/pricing?payment=cancelled`,
-    });
+        cancel_url:
+          `${siteUrl}/pricing?payment=cancelled`,
+      });
 
     return NextResponse.json({
       url: session.url,
     });
   } catch (error: unknown) {
-    console.error("STRIPE CHECKOUT ERROR:", error);
+    console.error(
+      "STRIPE CHECKOUT ERROR:",
+      error
+    );
 
     return NextResponse.json(
       {

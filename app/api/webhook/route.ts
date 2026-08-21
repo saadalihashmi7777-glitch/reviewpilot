@@ -6,7 +6,6 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 export async function POST(request: Request) {
   const body = await request.text();
-
   const signature = request.headers.get("stripe-signature");
 
   if (!signature) {
@@ -41,6 +40,7 @@ export async function POST(request: Request) {
       const session =
         event.data.object as Stripe.Checkout.Session;
 
+      // Get customer email
       const email = session.customer_details?.email;
 
       if (!email) {
@@ -51,11 +51,32 @@ export async function POST(request: Request) {
         });
       }
 
+      // Get the plan from Stripe Checkout metadata
+      const selectedPlan =
+        session.metadata?.plan;
+
+      if (
+        selectedPlan !== "pro" &&
+        selectedPlan !== "business"
+      ) {
+        console.error(
+          "Invalid or missing plan metadata:",
+          selectedPlan
+        );
+
+        return NextResponse.json(
+          { error: "Invalid plan." },
+          { status: 400 }
+        );
+      }
+
+      // Supabase admin client
       const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
       );
 
+      // Find Supabase user
       const { data: userData, error: userError } =
         await supabase.auth.admin.listUsers();
 
@@ -73,7 +94,8 @@ export async function POST(request: Request) {
 
       const user = userData.users.find(
         (u) =>
-          u.email?.toLowerCase() === email.toLowerCase()
+          u.email?.toLowerCase() ===
+          email.toLowerCase()
       );
 
       if (!user) {
@@ -87,17 +109,19 @@ export async function POST(request: Request) {
         });
       }
 
-      const { error: planError } = await supabase
-        .from("user_plans")
-        .upsert(
-          {
-            user_id: user.id,
-            plan: "pro",
-          },
-          {
-            onConflict: "user_id",
-          }
-        );
+      // Update user's plan
+      const { error: planError } =
+        await supabase
+          .from("user_plans")
+          .upsert(
+            {
+              user_id: user.id,
+              plan: selectedPlan,
+            },
+            {
+              onConflict: "user_id",
+            }
+          );
 
       if (planError) {
         console.error(
@@ -106,13 +130,16 @@ export async function POST(request: Request) {
         );
 
         return NextResponse.json(
-          { error: "Could not update user plan." },
+          {
+            error:
+              "Could not update user plan.",
+          },
           { status: 500 }
         );
       }
 
       console.log(
-        `User ${user.email} upgraded to Pro`
+        `User ${user.email} upgraded to ${selectedPlan}`
       );
     }
 
@@ -126,7 +153,10 @@ export async function POST(request: Request) {
     );
 
     return NextResponse.json(
-      { error: "Webhook processing failed." },
+      {
+        error:
+          "Webhook processing failed.",
+      },
       { status: 500 }
     );
   }
