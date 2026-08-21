@@ -8,7 +8,8 @@ const openai = new OpenAI({
 
 export async function POST(request: Request) {
   try {
-    const { review, tone, customerName, rating } = await request.json();
+    const { review, tone, customerName, rating } =
+      await request.json();
 
     if (!review?.trim()) {
       return NextResponse.json(
@@ -47,30 +48,66 @@ export async function POST(request: Request) {
 
     if (userError || !user) {
       return NextResponse.json(
-        { error: "Your login session is invalid. Please log in again." },
+        {
+          error:
+            "Your login session is invalid. Please log in again.",
+        },
         { status: 401 }
       );
     }
 
-    // Check free plan usage
-    const { count, error: countError } = await supabase
-      .from("review_replies")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id);
+    // Get user's current plan
+    const { data: planData, error: planError } =
+      await supabase
+        .from("user_plans")
+        .select("plan")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+    if (planError) {
+      console.error("Plan lookup error:", planError);
+
+      return NextResponse.json(
+        {
+          error:
+            "Could not check your plan. Please try again.",
+        },
+        { status: 500 }
+      );
+    }
+
+    const currentPlan = planData?.plan || "free";
+
+    // Check current usage
+    const { count, error: countError } =
+      await supabase
+        .from("review_replies")
+        .select("id", {
+          count: "exact",
+          head: true,
+        })
+        .eq("user_id", user.id);
 
     if (countError) {
       console.error("Usage check error:", countError);
 
       return NextResponse.json(
-        { error: "Could not check your usage. Please try again." },
+        {
+          error:
+            "Could not check your usage. Please try again.",
+        },
         { status: 500 }
       );
     }
 
     const repliesGenerated = count ?? 0;
-    const freeLimit = 10;
 
-    if (repliesGenerated >= freeLimit) {
+    // Free plan has 10 replies.
+    // Pro and Business are unlimited.
+    if (
+      currentPlan === "free" &&
+      repliesGenerated >= 10
+    ) {
       return NextResponse.json(
         {
           error:
@@ -81,9 +118,10 @@ export async function POST(request: Request) {
     }
 
     // Generate AI reply
-    const response = await openai.responses.create({
-      model: "gpt-5-mini",
-      input: `Write a professional response to this customer review.
+    const response =
+      await openai.responses.create({
+        model: "gpt-5-mini",
+        input: `Write a professional response to this customer review.
 
 Customer name: ${customerName || "Customer"}
 Rating: ${rating || "5"} stars
@@ -95,31 +133,40 @@ ${review}
 Write only the response.
 Do not add quotation marks.
 Keep it natural, polite, and concise.`,
-    });
+      });
 
-    const reply = response.output_text?.trim();
+    const reply =
+      response.output_text?.trim();
 
     if (!reply) {
       return NextResponse.json(
-        { error: "OpenAI returned an empty response." },
+        {
+          error:
+            "OpenAI returned an empty response.",
+        },
         { status: 500 }
       );
     }
 
     // Save reply
-    const { error: saveError } = await supabase
-      .from("review_replies")
-      .insert({
-        user_id: user.id,
-        customer_name: customerName || null,
-        rating: Number(rating) || 5,
-        tone: tone || "Professional",
-        review,
-        reply,
-      });
+    const { error: saveError } =
+      await supabase
+        .from("review_replies")
+        .insert({
+          user_id: user.id,
+          customer_name:
+            customerName || null,
+          rating: Number(rating) || 5,
+          tone: tone || "Professional",
+          review,
+          reply,
+        });
 
     if (saveError) {
-      console.error("Supabase save error:", saveError);
+      console.error(
+        "Supabase save error:",
+        saveError
+      );
 
       return NextResponse.json(
         {
@@ -131,14 +178,22 @@ Keep it natural, polite, and concise.`,
 
     return NextResponse.json({
       reply,
-      repliesGenerated: repliesGenerated + 1,
-      repliesRemaining: Math.max(
-        freeLimit - (repliesGenerated + 1),
-        0
-      ),
+      repliesGenerated:
+        repliesGenerated + 1,
+      repliesRemaining:
+        currentPlan === "free"
+          ? Math.max(
+              10 - (repliesGenerated + 1),
+              0
+            )
+          : null,
+      plan: currentPlan,
     });
   } catch (error: any) {
-    console.error("GENERATION ERROR:", error);
+    console.error(
+      "GENERATION ERROR:",
+      error
+    );
 
     return NextResponse.json(
       {

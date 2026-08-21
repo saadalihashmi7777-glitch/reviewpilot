@@ -84,14 +84,17 @@ export async function POST(request: Request) {
 
         customer_email:
           user.email || undefined,
+metadata: {
+  user_id: user.id,
+  plan: plan,
+},
 
-        // IMPORTANT:
-        // This tells the webhook which plan was purchased.
-        metadata: {
-          plan: plan,
-          user_id: user.id,
-        },
-
+subscription_data: {
+  metadata: {
+    user_id: user.id,
+    plan: plan,
+  },
+},
         success_url:
           `${siteUrl}/dashboard?payment=success`,
 
