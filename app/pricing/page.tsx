@@ -1,16 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "../lib/supabase";
 
 export default function PricingPage() {
-  const supabase = createClient();
-
+  const [supabase, setSupabase] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+useEffect(() => {
+  setSupabase(createClient());
+}, []);
+ async function handleUpgrade() {
+  if (!supabase) {
+    setError("Supabase is still loading. Please try again.");
+    return;
+  }
 
-  async function handleUpgrade() {
-    try {
+  try { 
       setLoading(true);
       setError("");
 
