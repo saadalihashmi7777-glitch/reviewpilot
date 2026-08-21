@@ -4,8 +4,6 @@ import { useEffect, useState } from "react";
 import { createClient } from "../lib/supabase";
 
 export default function GeneratePage() {
-  const supabase = createClient();
-
   const [customerName, setCustomerName] = useState("");
   const [rating, setRating] = useState("5");
   const [tone, setTone] = useState("Professional");
@@ -18,6 +16,8 @@ export default function GeneratePage() {
 
   useEffect(() => {
     async function loadUsage() {
+      const supabase = createClient();
+
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -54,6 +54,8 @@ export default function GeneratePage() {
     setCopied(false);
 
     try {
+      const supabase = createClient();
+
       const {
         data: { session },
       } = await supabase.auth.getSession();
