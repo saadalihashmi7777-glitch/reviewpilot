@@ -11,14 +11,18 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const supabase = createClient();
+  const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(
+    null
+  );
 
   useEffect(() => {
+    const client = createClient();
+    setSupabase(client);
+
     async function checkUser() {
       const {
         data: { user },
-      } = await supabase.auth.getUser();
+      } = await client.auth.getUser();
 
       if (user) {
         window.location.href = "/dashboard";
@@ -32,6 +36,11 @@ export default function AuthPage() {
     e.preventDefault();
 
     setMessage("");
+
+    if (!supabase) {
+      setMessage("Please wait a moment and try again.");
+      return;
+    }
 
     if (!email || !password) {
       setMessage("Please enter your email and password.");
@@ -134,7 +143,7 @@ export default function AuthPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !supabase}
             className="w-full rounded-lg bg-gray-900 px-4 py-3 font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading
