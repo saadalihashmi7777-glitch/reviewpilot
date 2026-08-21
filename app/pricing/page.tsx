@@ -7,16 +7,18 @@ export default function PricingPage() {
   const [supabase, setSupabase] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-useEffect(() => {
-  setSupabase(createClient());
-}, []);
- async function handleUpgrade() {
-  if (!supabase) {
-    setError("Supabase is still loading. Please try again.");
-    return;
-  }
 
-  try { 
+  useEffect(() => {
+    setSupabase(createClient());
+  }, []);
+
+  async function handleUpgrade() {
+    if (!supabase) {
+      setError("Supabase is still loading. Please try again.");
+      return;
+    }
+
+    try {
       setLoading(true);
       setError("");
 
@@ -33,20 +35,19 @@ useEffect(() => {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
+        body: JSON.stringify({
+          plan: "pro",
+        }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(
-          data.error || "Unable to start checkout."
-        );
+        throw new Error(data.error || "Unable to start checkout.");
       }
 
       if (!data.url) {
-        throw new Error(
-          "Stripe checkout URL was not returned."
-        );
+        throw new Error("Stripe checkout URL was not returned.");
       }
 
       window.location.href = data.url;
@@ -65,9 +66,8 @@ useEffect(() => {
 
   return (
     <main className="min-h-screen bg-gray-50 px-6 py-12">
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-6xl">
 
-        {/* Back */}
         <a
           href="/dashboard"
           className="font-semibold text-gray-700 hover:underline"
@@ -75,7 +75,6 @@ useEffect(() => {
           ← Back to Dashboard
         </a>
 
-        {/* Heading */}
         <div className="mt-10 text-center">
           <h1 className="text-4xl font-bold text-gray-900">
             Simple pricing
@@ -86,12 +85,10 @@ useEffect(() => {
           </p>
         </div>
 
-        {/* Pricing cards */}
-        <div className="mx-auto mt-10 grid max-w-4xl gap-8 md:grid-cols-2">
+        <div className="mx-auto mt-10 grid max-w-6xl gap-8 md:grid-cols-3">
 
           {/* FREE PLAN */}
-          <div className="rounded-2xl border bg-white p-8 shadow-sm">
-
+          <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
             <h2 className="text-2xl font-bold text-gray-900">
               Free
             </h2>
@@ -121,7 +118,7 @@ useEffect(() => {
 
             <a
               href="/dashboard"
-              className="mt-8 block rounded-xl border px-5 py-3 text-center font-semibold text-gray-700 hover:bg-gray-50"
+              className="mt-8 block rounded-xl border border-gray-300 px-5 py-3 text-center font-semibold text-gray-700 hover:bg-gray-50"
             >
               Current plan
             </a>
@@ -129,7 +126,6 @@ useEffect(() => {
 
           {/* PRO PLAN */}
           <div className="relative rounded-2xl border-2 border-gray-900 bg-white p-8 shadow-md">
-
             <div className="absolute right-6 top-6 rounded-full bg-gray-900 px-3 py-1 text-xs font-bold text-white">
               RECOMMENDED
             </div>
@@ -139,7 +135,7 @@ useEffect(() => {
             </h2>
 
             <p className="mt-2 text-gray-600">
-              For businesses that need unlimited replies.
+              For businesses that need more replies.
             </p>
 
             <div className="mt-6">
@@ -180,6 +176,47 @@ useEffect(() => {
               Secure checkout powered by Stripe.
             </p>
           </div>
+
+          {/* BUSINESS PLAN */}
+          <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+            <h2 className="text-2xl font-bold text-gray-900">
+              Business
+            </h2>
+
+            <p className="mt-2 text-gray-600">
+              For teams and agencies managing multiple businesses.
+            </p>
+
+            <div className="mt-6">
+              <span className="text-4xl font-bold text-gray-900">
+                $29
+              </span>
+
+              <span className="text-gray-500">
+                /month
+              </span>
+            </div>
+
+            <div className="mt-8 space-y-3 text-gray-700">
+              <p>✓ 500 AI replies</p>
+              <p>✓ Multiple businesses</p>
+              <p>✓ All response tones</p>
+              <p>✓ Reply history</p>
+              <p>✓ Unlimited regeneration</p>
+            </div>
+
+            <button
+              disabled
+              className="mt-8 w-full cursor-not-allowed rounded-xl border border-gray-300 px-5 py-3 font-semibold text-gray-500"
+            >
+              Business checkout coming soon
+            </button>
+
+            <p className="mt-4 text-center text-xs text-gray-500">
+              Business billing will be available soon.
+            </p>
+          </div>
+
         </div>
       </div>
     </main>
