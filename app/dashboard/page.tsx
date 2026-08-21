@@ -14,7 +14,8 @@ type Reply = {
 };
 
 export default function DashboardPage() {
-  const supabase = createClient();
+  const [supabase, setSupabase] =
+    useState<ReturnType<typeof createClient> | null>(null);
 
   const [email, setEmail] = useState("");
   const [plan, setPlan] = useState("free");
@@ -22,10 +23,13 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const client = createClient();
+    setSupabase(client);
+
     async function loadDashboard() {
       const {
         data: { user },
-      } = await supabase.auth.getUser();
+      } = await client.auth.getUser();
 
       if (!user) {
         window.location.href = "/auth";
@@ -34,8 +38,7 @@ export default function DashboardPage() {
 
       setEmail(user.email || "");
 
-      // Get user's plan
-      const { data: planData, error: planError } = await supabase
+      const { data: planData, error: planError } = await client
         .from("user_plans")
         .select("plan")
         .eq("user_id", user.id)
@@ -47,8 +50,7 @@ export default function DashboardPage() {
 
       setPlan(planData?.plan || "free");
 
-      // Get user's saved replies
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from("review_replies")
         .select("*")
         .eq("user_id", user.id)
@@ -69,6 +71,8 @@ export default function DashboardPage() {
   }, []);
 
   async function handleLogout() {
+    if (!supabase) return;
+
     await supabase.auth.signOut();
     window.location.href = "/auth";
   }
@@ -95,7 +99,6 @@ export default function DashboardPage() {
     <main className="min-h-screen bg-gray-50 px-4 py-8 sm:px-6">
       <div className="mx-auto max-w-5xl">
 
-        {/* Header */}
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">
@@ -115,10 +118,8 @@ export default function DashboardPage() {
           </button>
         </header>
 
-        {/* Stats */}
         <section className="mt-8 grid gap-6 md:grid-cols-3">
 
-          {/* Generated */}
           <div className="rounded-2xl bg-white p-6 shadow-sm">
             <p className="text-sm font-medium text-gray-500">
               Replies generated
@@ -129,7 +130,6 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          {/* Remaining */}
           <div className="rounded-2xl bg-white p-6 shadow-sm">
             <p className="text-sm font-medium text-gray-500">
               Replies remaining
@@ -146,7 +146,6 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Plan */}
           <div className="rounded-2xl bg-white p-6 shadow-sm">
             <p className="text-sm font-medium text-gray-500">
               Current plan
@@ -167,7 +166,6 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Generate */}
         <section className="mt-8 rounded-2xl bg-white p-8 shadow-sm">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
 
@@ -190,7 +188,6 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Recent replies */}
         <section className="mt-8 rounded-2xl bg-white p-8 shadow-sm">
 
           <div className="flex items-center justify-between">
@@ -227,7 +224,6 @@ export default function DashboardPage() {
                   className="rounded-xl border border-gray-200 p-5"
                 >
 
-                  {/* Reply header */}
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 
                     <div>
@@ -248,7 +244,6 @@ export default function DashboardPage() {
 
                   </div>
 
-                  {/* Customer review */}
                   <div className="mt-5">
                     <p className="text-sm font-semibold text-gray-700">
                       Customer review
@@ -259,7 +254,6 @@ export default function DashboardPage() {
                     </p>
                   </div>
 
-                  {/* Generated reply */}
                   <div className="mt-4 rounded-xl bg-gray-50 p-5">
                     <p className="text-sm font-semibold text-gray-700">
                       Your reply
@@ -277,7 +271,6 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* Upgrade banner */}
         {plan === "free" && (
           <section className="mt-8 rounded-2xl bg-gray-900 p-8 text-white">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
