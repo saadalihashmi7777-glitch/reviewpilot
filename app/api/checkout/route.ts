@@ -37,22 +37,14 @@ export async function POST(request: Request) {
     if (userError || !user) {
       return NextResponse.json(
         {
-          error:
-            "Your login session is invalid. Please log in again.",
+          error: "Your login session is invalid. Please log in again.",
         },
         { status: 401 }
       );
     }
 
-    let body: { plan?: string } = {};
-
-    try {
-      body = await request.json();
-    } catch {
-      body = {};
-    }
-
-    const plan = body.plan || "pro";
+    const body = await request.json();
+    const plan = body.plan;
 
     let priceId: string | undefined;
 
@@ -69,16 +61,13 @@ export async function POST(request: Request) {
 
     if (!priceId) {
       return NextResponse.json(
-        {
-          error: `Stripe price ID for ${plan} plan is not configured.`,
-        },
+        { error: "Stripe price ID is not configured." },
         { status: 500 }
       );
     }
 
     const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      "http://localhost:3000";
+      process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -92,16 +81,9 @@ export async function POST(request: Request) {
 
       customer_email: user.email || undefined,
 
-      metadata: {
-        user_id: user.id,
-        plan: plan,
-      },
+      success_url: `${siteUrl}/dashboard?payment=success`,
 
-      success_url:
-        `${siteUrl}/dashboard?payment=success`,
-
-      cancel_url:
-        `${siteUrl}/pricing?payment=cancelled`,
+      cancel_url: `${siteUrl}/pricing?payment=cancelled`,
     });
 
     return NextResponse.json({
