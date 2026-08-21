@@ -207,7 +207,7 @@ export default function Home() {
               </ul>
 
               <a
-                href="/generate"
+              href="/pricing"
                 className="mt-8 block rounded-lg bg-gray-900 px-5 py-3 text-center font-semibold text-white hover:bg-gray-800"
               >
                 Start Pro
@@ -237,7 +237,7 @@ export default function Home() {
               </ul>
 
               <a
-                href="/generate"
+                href="/pricing"
                 className="mt-8 block rounded-lg border border-gray-300 px-5 py-3 text-center font-semibold hover:bg-gray-50"
               >
                 Start Business
