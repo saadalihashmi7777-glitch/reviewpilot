@@ -9,68 +9,57 @@ export default function ResetPasswordPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
 
-    async function setupRecovery() {
+    async function setupRecoverySession() {
       try {
         const url = new URL(window.location.href);
         const code = url.searchParams.get("code");
 
-        if (!code) {
-          setMessage("Invalid password reset link.");
-          setCheckingSession(false);
-          return;
+        // PKCE recovery link
+        if (code) {
+          const { error } =
+            await supabase.auth.exchangeCodeForSession(code);
+
+          if (error) {
+            console.error("Code exchange error:", error);
+            setMessage(
+              "This password reset link is invalid or expired. Please request a new one."
+            );
+            setCheckingSession(false);
+            return;
+          }
         }
 
-        const { error } =
-          await supabase.auth.exchangeCodeForSession(code);
-
-        if (error) {
-          console.error("Recovery error:", error);
-
-          setMessage(
-            "This password reset link is invalid or expired. Please request a new one."
-          );
-
-          setCheckingSession(false);
-          return;
-        }
-
+        // Check for the newly-created session
         const {
           data: { session },
         } = await supabase.auth.getSession();
 
-        if (!session) {
+        if (session) {
+          setReady(true);
+        } else {
           setMessage(
-            "Unable to create a password reset session. Please request a new reset email."
+            "Password reset session is missing. Please request a new reset email."
           );
-
-          setCheckingSession(false);
-          return;
         }
-
-        // Remove the recovery code from the address bar
-        window.history.replaceState(
-          {},
-          document.title,
-          "/auth/reset-password"
-        );
 
         setCheckingSession(false);
       } catch (error) {
-        console.error(error);
+        console.error("Recovery error:", error);
 
         setMessage(
-          "Something went wrong while verifying the reset link."
+          "Unable to verify the password reset link. Please request a new one."
         );
 
         setCheckingSession(false);
       }
     }
 
-    setupRecovery();
+    setupRecoverySession();
   }, []);
 
   async function handleReset(e: React.FormEvent) {
@@ -120,7 +109,8 @@ export default function ResetPasswordPage() {
       await supabase.auth.signOut();
 
       setTimeout(() => {
-        window.location.href = "/auth";
+        window.location.href =
+          "https://reviewpilot-brown.vercel.app/auth";
       }, 2000);
     } catch (error: any) {
       setMessage(
@@ -136,6 +126,7 @@ export default function ResetPasswordPage() {
     <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50 px-4">
       <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-xl ring-1 ring-gray-100">
 
+        {/* Logo */}
         <div className="text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 text-2xl font-bold text-white shadow-lg">
             R
@@ -150,15 +141,17 @@ export default function ResetPasswordPage() {
           </p>
         </div>
 
+        {/* Checking session */}
         {checkingSession ? (
           <div className="mt-8 rounded-xl border border-indigo-100 bg-indigo-50 p-4 text-center text-sm text-indigo-700">
             Verifying your password reset link...
           </div>
-        ) : (
+        ) : ready ? (
           <form
             onSubmit={handleReset}
             className="mt-8 space-y-5"
           >
+            {/* New password */}
             <div>
               <label className="text-sm font-semibold text-gray-700">
                 New password
@@ -177,6 +170,7 @@ export default function ResetPasswordPage() {
               />
             </div>
 
+            {/* Confirm password */}
             <div>
               <label className="text-sm font-semibold text-gray-700">
                 Confirm new password
@@ -195,12 +189,14 @@ export default function ResetPasswordPage() {
               />
             </div>
 
+            {/* Message */}
             {message && (
               <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-700">
                 {message}
               </div>
             )}
 
+            {/* Button */}
             <button
               type="submit"
               disabled={loading}
@@ -211,8 +207,13 @@ export default function ResetPasswordPage() {
                 : "Update Password"}
             </button>
           </form>
+        ) : (
+          <div className="mt-8 rounded-xl border border-red-100 bg-red-50 p-4 text-center text-sm text-red-700">
+            {message}
+          </div>
         )}
 
+        {/* Login */}
         <div className="mt-7 text-center text-sm text-gray-600">
           Remember your password?{" "}
           <a
