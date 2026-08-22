@@ -63,7 +63,7 @@ export default function AuthPage() {
       if (resetMode) {
         const { error } =
           await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: "https://reviewpilot-brown.vercel.app/auth/reset-password",
+            redirectTo: "https://reviewpilot-23hflbk8i-review-pilot3.vercel.app/auth/reset-password",
           });
 
         if (error) {
