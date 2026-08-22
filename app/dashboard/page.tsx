@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createClient } from "../lib/supabase";
+import type { BusinessProfile } from "../lib/business-profile";
 
 type Reply = {
   id: string;
@@ -23,6 +24,8 @@ export default function DashboardPage() {
   const [plan, setPlan] = useState("free");
   const [replies, setReplies] = useState<Reply[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [profile, setProfile] = useState<BusinessProfile | null>(null);
 
   useEffect(() => {
     const client = createClient();
@@ -51,6 +54,18 @@ export default function DashboardPage() {
       }
 
       setPlan(planData?.plan || "free");
+
+      const { data: profileData, error: profileError } = await client
+        .from("business_profiles")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        console.error("Business profile error:", profileError);
+      }
+
+      setProfile(profileData ?? null);
 
       const { data, error } = await client
         .from("review_replies")
@@ -167,6 +182,91 @@ const repliesRemaining =
             )}
           </div>
         </section>
+
+        {profile ? (
+          <section className="mt-8 rounded-2xl bg-white p-6 shadow-sm sm:p-8">
+
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  {profile.business_name}
+                </h2>
+
+                <p className="mt-1 text-sm text-gray-500">
+                  Your replies are written in this business&apos;s voice.
+                </p>
+              </div>
+
+              <Link
+                href="/onboarding"
+                className="shrink-0 rounded-lg border border-gray-300 bg-white px-4 py-2 text-center text-sm font-semibold text-gray-700 hover:bg-gray-100"
+              >
+                Edit profile
+              </Link>
+
+            </div>
+
+            <dl className="mt-6 grid gap-5 sm:grid-cols-3">
+
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                  Business type
+                </dt>
+                <dd className="mt-1 text-sm font-medium text-gray-900">
+                  {profile.business_type}
+                </dd>
+              </div>
+
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                  Location
+                </dt>
+                <dd className="mt-1 text-sm font-medium text-gray-900">
+                  {profile.location}
+                </dd>
+              </div>
+
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                  Brand voice
+                </dt>
+                <dd className="mt-1 text-sm font-medium text-gray-900">
+                  {profile.brand_voice}
+                </dd>
+              </div>
+
+            </dl>
+
+          </section>
+        ) : (
+          <section className="mt-8 rounded-2xl border border-gray-900/10 bg-white p-6 shadow-sm sm:p-8">
+
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  Set up your business profile
+                </h2>
+
+                <p className="mt-2 max-w-xl leading-6 text-gray-600">
+                  Add your business name, type, location and brand voice so
+                  every AI reply sounds like it was written specifically for
+                  you instead of generic customer service text.
+                </p>
+              </div>
+
+              <Link
+                href="/onboarding"
+                className="shrink-0 rounded-xl bg-gray-900 px-5 py-3 text-center font-semibold text-white hover:bg-gray-800"
+              >
+                Set up your business profile →
+              </Link>
+
+            </div>
+
+          </section>
+        )}
 
         <section className="mt-8 rounded-2xl bg-white p-8 shadow-sm">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">

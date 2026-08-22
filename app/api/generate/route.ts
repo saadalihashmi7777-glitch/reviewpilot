@@ -117,21 +117,66 @@ export async function POST(request: Request) {
       );
     }
 
+    // Get the user's business profile so the reply sounds like
+    // it was written by their specific business.
+    // A missing profile is NOT an error: generation still works,
+    // it just falls back to a generic reply.
+    const { data: profile, error: profileError } =
+      await supabase
+        .from("business_profiles")
+        .select(
+          "business_name, business_type, location, brand_voice, special_instructions, website"
+        )
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+    if (profileError) {
+      console.error(
+        "Business profile lookup error:",
+        profileError
+      );
+    }
+
+    const businessContext = profile
+      ? `You are the owner of the business described below. Write in that business's voice.
+
+Business name: ${profile.business_name}
+Business type: ${profile.business_type}
+Location: ${profile.location}
+Brand voice: ${profile.brand_voice}${
+          profile.website
+            ? `\nWebsite: ${profile.website}`
+            : ""
+        }${
+          profile.special_instructions
+            ? `\n\nSpecial instructions from the business owner. These override every other style rule below:\n${profile.special_instructions}`
+            : ""
+        }
+
+The reply must read as if this specific business wrote it, not as generic
+customer service text. Refer to the business naturally where it fits.`
+      : `You are writing on behalf of a local business. No business details
+were provided, so keep the reply generic and do not invent a business
+name, location, or any specific detail about the business.`;
+
     // Generate AI reply
     const response =
       await openai.responses.create({
         model: "gpt-5-mini",
-        input: `Write a professional response to this customer review.
+        input: `${businessContext}
+
+Write a response to this customer review.
 
 Customer name: ${customerName || "Customer"}
 Rating: ${rating || "5"} stars
-Tone: ${tone || "Professional"}
+Tone for this specific reply: ${tone || "Professional"}
 
 Customer review:
 ${review}
 
 Write only the response.
 Do not add quotation marks.
+Do not invent facts, offers, or details that were not provided.
 Keep it natural, polite, and concise.`,
       });
 
@@ -188,6 +233,7 @@ Keep it natural, polite, and concise.`,
             )
           : null,
       plan: currentPlan,
+      hasBusinessProfile: Boolean(profile),
     });
   } catch (error: any) {
     console.error(

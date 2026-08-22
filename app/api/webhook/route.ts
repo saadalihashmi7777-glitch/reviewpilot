@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 export async function POST(request: Request) {
+  // IMPORTANT: Read the raw body for Stripe signature verification
   const body = await request.text();
   const signature = request.headers.get("stripe-signature");
 
@@ -40,27 +41,32 @@ export async function POST(request: Request) {
       const session =
         event.data.object as Stripe.Checkout.Session;
 
-      // Get customer email
-      const email = session.customer_details?.email;
+      // Get metadata from Checkout Session
+      const userId = session.metadata?.user_id;
+      const selectedPlan = session.metadata?.plan;
 
-      if (!email) {
-        console.error("No customer email found.");
+      console.log("Stripe checkout completed:", {
+        userId,
+        selectedPlan,
+        sessionId: session.id,
+      });
 
-        return NextResponse.json({
-          received: true,
-        });
+      // Validate metadata
+      if (!userId) {
+        console.error("Missing user_id in Stripe metadata.");
+
+        return NextResponse.json(
+          { error: "Missing user ID." },
+          { status: 400 }
+        );
       }
-
-      // Get the plan from Stripe Checkout metadata
-      const selectedPlan =
-        session.metadata?.plan;
 
       if (
         selectedPlan !== "pro" &&
         selectedPlan !== "business"
       ) {
         console.error(
-          "Invalid or missing plan metadata:",
+          "Invalid or missing plan:",
           selectedPlan
         );
 
@@ -70,58 +76,24 @@ export async function POST(request: Request) {
         );
       }
 
-      // Supabase admin client
+      // Supabase Admin client
       const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
       );
 
-      // Find Supabase user
-      const { data: userData, error: userError } =
-        await supabase.auth.admin.listUsers();
-
-      if (userError) {
-        console.error(
-          "Supabase user lookup error:",
-          userError
+      // Update user's plan directly using user_id
+      const { error: planError } = await supabase
+        .from("user_plans")
+        .upsert(
+          {
+            user_id: userId,
+            plan: selectedPlan,
+          },
+          {
+            onConflict: "user_id",
+          }
         );
-
-        return NextResponse.json(
-          { error: "Could not find Supabase user." },
-          { status: 500 }
-        );
-      }
-
-      const user = userData.users.find(
-        (u) =>
-          u.email?.toLowerCase() ===
-          email.toLowerCase()
-      );
-
-      if (!user) {
-        console.error(
-          "No Supabase user found for:",
-          email
-        );
-
-        return NextResponse.json({
-          received: true,
-        });
-      }
-
-      // Update user's plan
-      const { error: planError } =
-        await supabase
-          .from("user_plans")
-          .upsert(
-            {
-              user_id: user.id,
-              plan: selectedPlan,
-            },
-            {
-              onConflict: "user_id",
-            }
-          );
 
       if (planError) {
         console.error(
@@ -131,15 +103,14 @@ export async function POST(request: Request) {
 
         return NextResponse.json(
           {
-            error:
-              "Could not update user plan.",
+            error: "Could not update user plan.",
           },
           { status: 500 }
         );
       }
 
       console.log(
-        `User ${user.email} upgraded to ${selectedPlan}`
+        `User ${userId} upgraded to ${selectedPlan}`
       );
     }
 
@@ -147,15 +118,11 @@ export async function POST(request: Request) {
       received: true,
     });
   } catch (error) {
-    console.error(
-      "WEBHOOK ERROR:",
-      error
-    );
+    console.error("WEBHOOK ERROR:", error);
 
     return NextResponse.json(
       {
-        error:
-          "Webhook processing failed.",
+        error: "Webhook processing failed.",
       },
       { status: 500 }
     );
