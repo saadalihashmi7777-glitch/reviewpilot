@@ -11,9 +11,11 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [supabase, setSupabase] = useState<ReturnType<typeof createClient> | null>(
-    null
-  );
+  const [resetMode, setResetMode] = useState(false);
+
+  const [supabase, setSupabase] = useState<
+    ReturnType<typeof createClient> | null
+  >(null);
 
   useEffect(() => {
     const client = createClient();
@@ -42,19 +44,49 @@ export default function AuthPage() {
       return;
     }
 
-    if (!email || !password) {
-      setMessage("Please enter your email and password.");
+    if (!email) {
+      setMessage("Please enter your email address.");
+      return;
+    }
+
+    if (!resetMode && !password) {
+      setMessage("Please enter your password.");
       return;
     }
 
     setLoading(true);
 
     try {
+      // =========================
+      // FORGOT PASSWORD
+      // =========================
+      if (resetMode) {
+        const { error } =
+          await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: "https://reviewpilot-brown.vercel.app/auth/reset-password",
+          });
+
+        if (error) {
+          setMessage(error.message);
+          return;
+        }
+
+        setMessage(
+          "Password reset email sent. Please check your inbox."
+        );
+
+        return;
+      }
+
+      // =========================
+      // LOGIN
+      // =========================
       if (mode === "login") {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+        const { error } =
+          await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
 
         if (error) {
           setMessage(error.message);
@@ -62,11 +94,17 @@ export default function AuthPage() {
         }
 
         window.location.href = "/dashboard";
-      } else {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-        });
+      }
+
+      // =========================
+      // SIGN UP
+      // =========================
+      else {
+        const { data, error } =
+          await supabase.auth.signUp({
+            email,
+            password,
+          });
 
         if (error) {
           setMessage(error.message);
@@ -83,7 +121,8 @@ export default function AuthPage() {
       }
     } catch (error: any) {
       setMessage(
-        error?.message || "Something went wrong. Please try again."
+        error?.message ||
+          "Something went wrong. Please try again."
       );
     } finally {
       setLoading(false);
@@ -91,71 +130,126 @@ export default function AuthPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-sm">
-        <h1 className="text-3xl font-bold text-gray-900">
-          ReviewPilot
-        </h1>
+    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50 px-4">
+      <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-xl ring-1 ring-gray-100">
 
-        <p className="mt-2 text-gray-600">
-          {mode === "login"
-            ? "Log in to your account."
-            : "Create your ReviewPilot account."}
-        </p>
+        {/* Logo / Title */}
+        <div className="text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 text-2xl font-bold text-white shadow-lg">
+            R
+          </div>
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+          <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-gray-900">
+            Review<span className="text-indigo-600">Pilot</span>
+          </h1>
+
+          <p className="mt-2 text-gray-500">
+            {resetMode
+              ? "Reset your password."
+              : mode === "login"
+              ? "Welcome back! Log in to continue."
+              : "Create your ReviewPilot account."}
+          </p>
+        </div>
+
+        {/* Form */}
+        <form
+          onSubmit={handleSubmit}
+          className="mt-8 space-y-5"
+        >
+
+          {/* Email */}
           <div>
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-semibold text-gray-700">
               Email
             </label>
 
             <input
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) =>
+                setEmail(e.target.value)
+              }
               placeholder="you@example.com"
-              className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-gray-900"
+              className="mt-2 w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-100"
               required
             />
           </div>
 
-          <div>
-            <label className="text-sm font-medium text-gray-700">
-              Password
-            </label>
+          {/* Password */}
+          {!resetMode && (
+            <div>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-semibold text-gray-700">
+                  Password
+                </label>
 
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-gray-900"
-              required
-              minLength={6}
-            />
-          </div>
+                {mode === "login" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResetMode(true);
+                      setMessage("");
+                    }}
+                    className="text-sm font-semibold text-indigo-600 hover:text-indigo-800"
+                  >
+                    Forgot password?
+                  </button>
+                )}
+              </div>
 
+              <input
+                type="password"
+                value={password}
+                onChange={(e) =>
+                  setPassword(e.target.value)
+                }
+                placeholder="••••••••"
+                className="mt-2 w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-100"
+                required
+                minLength={6}
+              />
+            </div>
+          )}
+
+          {/* Message */}
           {message && (
-            <div className="rounded-lg bg-gray-100 p-3 text-sm text-gray-700">
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-700">
               {message}
             </div>
           )}
 
+          {/* Main Button */}
           <button
             type="submit"
             disabled={loading || !supabase}
-            className="w-full rounded-lg bg-gray-900 px-4 py-3 font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-3.5 font-bold text-white shadow-md transition hover:from-indigo-700 hover:to-purple-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading
               ? "Please wait..."
+              : resetMode
+              ? "Send Reset Email"
               : mode === "login"
-              ? "Log in"
-              : "Create account"}
+              ? "Log in →"
+              : "Create account →"}
           </button>
         </form>
 
-        <div className="mt-6 text-center text-sm text-gray-600">
-          {mode === "login" ? (
+        {/* Bottom navigation */}
+        <div className="mt-7 text-center text-sm text-gray-600">
+
+          {resetMode ? (
+            <button
+              type="button"
+              onClick={() => {
+                setResetMode(false);
+                setMessage("");
+              }}
+              className="font-semibold text-indigo-600 hover:text-indigo-800"
+            >
+              ← Back to login
+            </button>
+          ) : mode === "login" ? (
             <>
               Don't have an account?{" "}
               <button
@@ -164,7 +258,7 @@ export default function AuthPage() {
                   setMode("signup");
                   setMessage("");
                 }}
-                className="font-semibold text-gray-900 underline"
+                className="font-semibold text-indigo-600 underline underline-offset-2 hover:text-indigo-800"
               >
                 Create one
               </button>
@@ -178,13 +272,19 @@ export default function AuthPage() {
                   setMode("login");
                   setMessage("");
                 }}
-                className="font-semibold text-gray-900 underline"
+                className="font-semibold text-indigo-600 underline underline-offset-2 hover:text-indigo-800"
               >
                 Log in
               </button>
             </>
           )}
         </div>
+
+        {/* Footer */}
+        <p className="mt-8 text-center text-xs text-gray-400">
+          AI-powered review responses for local businesses.
+        </p>
+
       </div>
     </main>
   );

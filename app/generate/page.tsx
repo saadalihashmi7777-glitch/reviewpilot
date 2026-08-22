@@ -332,22 +332,36 @@ export default function GeneratePage() {
             />
           </div>
 
-          <button
-            type="button"
-            onClick={handleGenerate}
-            disabled={
-              !review.trim() ||
-              loading ||
-              freeLimitReached
-            }
-            className="mt-6 w-full rounded-xl bg-gray-900 px-5 py-3.5 font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300"
-          >
-            {loading
-              ? "Generating..."
-              : freeLimitReached
-                ? "Free Limit Reached"
-                : "Generate Reply →"}
-          </button>
+          {freeLimitReached ? (
+  <div className="mt-6">
+    <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 text-center">
+      <h3 className="font-bold text-gray-900">
+        Free Limit Reached
+      </h3>
+
+      <p className="mt-1 text-sm text-gray-600">
+        You’ve used all 10 free replies. Upgrade to Pro
+        for unlimited AI-generated replies.
+      </p>
+
+      <a
+        href="/pricing"
+        className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-gray-900 px-5 py-3.5 font-semibold text-white transition hover:bg-gray-800"
+      >
+        Upgrade to Pro →
+      </a>
+    </div>
+  </div>
+) : (
+  <button
+    type="button"
+    onClick={handleGenerate}
+    disabled={!review.trim() || loading}
+    className="mt-6 w-full rounded-xl bg-gray-900 px-5 py-3.5 font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300"
+  >
+    {loading ? "Generating..." : "Generate Reply →"}
+  </button>
+)}
 
           {error && (
             <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
